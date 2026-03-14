@@ -2,7 +2,7 @@
 
 A web-based AI command center featuring a pixel art office with 3 AI agents, voice interaction, and real-time system monitoring. Built for Raspberry Pi 5 + 7" touchscreen, but runs anywhere with Node.js.
 
-![Three zones: animated mascot (left), pixel art office (right), terminal log (bottom)]
+
 
 ## Quick Start
 
