@@ -562,24 +562,47 @@ function drawWeatherCloud(cx, cy, color) {
   pixel(cx - PX * 1.5, cy, PX); pixel(cx - PX * 0.5, cy, PX); pixel(cx + PX * 0.5, cy, PX); pixel(cx + PX * 1.5, cy, PX);
 }
 
+// Marketing kanban data (updated via API)
+let marketingPosts = { drafts: [], scheduled: [], posted: [] };
+
+/**
+ * Update kanban posts from API
+ */
+export async function fetchKanbanPosts(companyId) {
+  try {
+    const response = await fetch(`/api/posts/${companyId}`);
+    const data = await response.json();
+    
+    if (data.success) {
+      // Group by status
+      marketingPosts = {
+        drafts: data.posts.filter(p => p.status === 'draft'),
+        scheduled: data.posts.filter(p => p.status === 'scheduled'),
+        posted: data.posts.filter(p => p.status === 'posted'),
+      };
+    }
+  } catch (err) {
+    console.error('[office] Error fetching kanban posts:', err.message);
+  }
+}
+
 function drawWhiteboard() {
   const w = canvas.width;
   const wbW = PX * 28, wbH = PX * 13;
   const wbX = Math.floor(w * 0.50) - wbW / 2, wbY = PX * 2;
 
-  // Header
+  // Header - Marketing focused
   ctx.fillStyle = '#555';
   ctx.font = `bold ${PX * 1.8}px VT323`; ctx.textAlign = 'center';
-  ctx.fillText('TEAM BOARD', wbX + wbW / 2, wbY + PX * 1.8);
+  ctx.fillText('CONTENT PIPELINE', wbX + wbW / 2, wbY + PX * 1.8);
   ctx.fillStyle = '#CCCCCC';
   ctx.fillRect(wbX + PX, wbY + PX * 2.2, wbW - PX * 2, 1);
 
-  // 3 kanban columns
+  // 3 kanban columns: DRAFTS → SCHEDULED → POSTED
   const colW = Math.floor((wbW - PX * 2) / 3);
   const colY = wbY + PX * 3;
-  const headers = ['IDLE', 'BUSY', 'DONE'];
-  const hColors = ['#2A8A3A', '#CC8800', '#3A3ADA'];
-  const stateColors = { idle: '#00FF66', thinking: '#FFCC00', working: '#AA66FF', talking: '#00DDFF' };
+  const headers = ['DRAFTS', 'SCHEDULED', 'POSTED'];
+  const hColors = ['#CC8800', '#3A3ADA', '#2A8A3A'];
 
   for (let c = 0; c < 3; c++) {
     const cx = wbX + PX + c * colW;
@@ -588,59 +611,79 @@ function drawWhiteboard() {
     ctx.fillText(headers[c], cx + colW / 2, colY + PX * 0.3);
   }
 
-  // Column 1: IDLE agents
-  const idleAgents = agents.filter(a => a.state === 'idle');
-  for (let i = 0; i < idleAgents.length && i < 3; i++) {
-    const a = idleAgents[i], cx = wbX + PX + colW / 2, cy = colY + PX * 1.5 + i * PX * 1.6;
-    ctx.fillStyle = a.color;
+  // Column 1: DRAFTS (show first 3)
+  const drafts = marketingPosts.drafts.slice(0, 3);
+  for (let i = 0; i < drafts.length; i++) {
+    const p = drafts[i], cx = wbX + PX + colW / 2, cy = colY + PX * 1.5 + i * PX * 1.8;
+    ctx.fillStyle = '#CC8800';
     ctx.beginPath(); ctx.arc(cx - PX * 3, cy, PX * 0.4, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#444'; ctx.font = `${PX * 1.2}px VT323`; ctx.textAlign = 'left';
-    ctx.fillText(a.label, cx - PX * 2, cy + PX * 0.3);
+    // Platform icon
+    const platformIcon = getPlatformIcon(p.platform);
+    ctx.fillStyle = '#888'; ctx.font = `${PX * 1.0}px VT323`; ctx.textAlign = 'left';
+    ctx.fillText(platformIcon, cx - PX * 2.2, cy + PX * 0.35);
+    // Truncated content
+    ctx.fillStyle = '#666'; ctx.font = `${PX * 0.9}px VT323`;
+    const preview = p.content.length > 15 ? p.content.substring(0, 15) + '...' : p.content;
+    ctx.fillText(preview, cx - PX * 1, cy + PX * 0.35);
   }
 
-  // Column 2: BUSY agents
-  const busyAgents = agents.filter(a => a.state !== 'idle');
-  for (let i = 0; i < busyAgents.length && i < 3; i++) {
-    const a = busyAgents[i], cx = wbX + PX + colW + colW / 2, cy = colY + PX * 1.5 + i * PX * 1.6;
-    ctx.fillStyle = stateColors[a.state] || a.color;
+  // Column 2: SCHEDULED (show next 3 with times)
+  const scheduled = marketingPosts.scheduled.slice(0, 3);
+  for (let i = 0; i < scheduled.length; i++) {
+    const p = scheduled[i], cx = wbX + PX + colW + colW / 2, cy = colY + PX * 1.5 + i * PX * 1.8;
+    ctx.fillStyle = '#3A3ADA';
     ctx.beginPath(); ctx.arc(cx - PX * 3, cy, PX * 0.4, 0, Math.PI * 2); ctx.fill();
-    // Pulsing dot for active work
-    if (a.state === 'working' || a.state === 'thinking') {
-      const pulse = 0.3 + Math.sin(tick / 200) * 0.2;
-      ctx.save(); ctx.globalAlpha = pulse;
-      ctx.beginPath(); ctx.arc(cx - PX * 3, cy, PX * 0.8, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
+    // Platform icon
+    const platformIcon = getPlatformIcon(p.platform);
+    ctx.fillStyle = '#888'; ctx.font = `${PX * 1.0}px VT323`; ctx.textAlign = 'left';
+    ctx.fillText(platformIcon, cx - PX * 2.2, cy + PX * 0.35);
+    // Scheduled time
+    if (p.scheduled_at) {
+      const time = new Date(p.scheduled_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      ctx.fillStyle = '#AAA'; ctx.font = `${PX * 0.85}px VT323`;
+      ctx.fillText(time, cx - PX * 1, cy + PX * 0.35);
     }
-    ctx.fillStyle = '#444'; ctx.font = `${PX * 1.2}px VT323`; ctx.textAlign = 'left';
-    ctx.fillText(a.label, cx - PX * 2, cy + PX * 0.3);
   }
 
-  // Column 3: DONE (recent completed tasks)
-  const recentDone = kanbanTasks.done.slice(-3);
-  for (let i = 0; i < recentDone.length; i++) {
-    const t = recentDone[i], a = agents.find(ag => ag.id === t.agentId);
-    if (!a) continue;
-    const cx = wbX + PX + colW * 2 + colW / 2, cy = colY + PX * 1.5 + i * PX * 1.6;
-    ctx.fillStyle = a.color;
+  // Column 3: POSTED (recent 3)
+  const posted = marketingPosts.posted.slice(-3);
+  for (let i = 0; i < posted.length; i++) {
+    const p = posted[i], cx = wbX + PX + colW * 2 + colW / 2, cy = colY + PX * 1.5 + i * PX * 1.8;
+    ctx.fillStyle = '#2A8A3A';
     ctx.beginPath(); ctx.arc(cx - PX * 3, cy, PX * 0.4, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#2A8A3A'; ctx.font = `bold ${PX * 1.2}px VT323`; ctx.textAlign = 'left';
-    ctx.fillText('>', cx - PX * 2, cy + PX * 0.3);
-    ctx.fillStyle = '#555'; ctx.font = `${PX * 1.1}px VT323`;
-    ctx.fillText(a.label, cx - PX * 0.8, cy + PX * 0.3);
+    // Checkmark for posted
+    ctx.fillStyle = '#4A4'; ctx.font = `bold ${PX * 1.2}px VT323`; ctx.textAlign = 'left';
+    ctx.fillText('✓', cx - PX * 2.5, cy + PX * 0.4);
+    // Platform icon
+    const platformIcon = getPlatformIcon(p.platform);
+    ctx.fillStyle = '#888'; ctx.font = `${PX * 1.0}px VT323`;
+    ctx.fillText(platformIcon, cx - PX * 1.5, cy + PX * 0.35);
   }
 
   // Bottom stats bar
   ctx.fillStyle = '#CCCCCC';
   ctx.fillRect(wbX + PX, wbY + wbH - PX * 2.8, wbW - PX * 2, 1);
-  const elapsed = Math.floor((Date.now() - sessionStats.startTime) / 60000);
-  const hrs = Math.floor(elapsed / 60), mins = elapsed % 60;
-  const timeStr = hrs > 0 ? `${hrs}h${String(mins).padStart(2, '0')}m` : `${mins}m`;
+  const totalPosts = marketingPosts.drafts.length + marketingPosts.scheduled.length + marketingPosts.posted.length;
   ctx.fillStyle = '#777'; ctx.font = `${PX * 1.2}px VT323`;
   ctx.textAlign = 'left';
-  ctx.fillText(`UP ${timeStr}`, wbX + PX * 2, wbY + wbH - PX * 1.2);
+  ctx.fillText(`${totalPosts} posts`, wbX + PX * 2, wbY + wbH - PX * 1.2);
   ctx.textAlign = 'right';
-  ctx.fillText(`${sessionStats.tasksCompleted} done`, wbX + wbW - PX * 2, wbY + wbH - PX * 1.2);
+  ctx.fillText(`${marketingPosts.posted.length} published`, wbX + wbW - PX * 2, wbY + wbH - PX * 1.2);
   ctx.textAlign = 'start';
+}
+
+/**
+ * Get platform icon character
+ */
+function getPlatformIcon(platform) {
+  const icons = {
+    linkedin: 'in',
+    instagram: 'ig',
+    facebook: 'fb',
+    twitter: 'tw',
+    tiktok: 'tt',
+  };
+  return icons[platform] || '•';
 }
 
 // --- Furniture ---

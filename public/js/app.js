@@ -118,13 +118,15 @@ officeCanvas.addEventListener('click', async (e) => {
 // --- Boot Sequence ---
 
 const BOOT_LINES = [
-  ['[sys] OpenClaw Command Center v1.0', 'system'],
+  ['[sys] OpenClaw Marketing Hub v1.0', 'system'],
   ['[sys] Initializing display modules...', 'system'],
   ['[sys] Mascot renderer: OK', 'info'],
   ['[sys] Office renderer: OK (3 agents)', 'info'],
   ['[sys] Terminal: OK', 'info'],
-  ['[sys] Voice: tap mascot for Jansky, tap agent in office', 'agent'],
-  ['[sys] Agents: main(Jansky) | claw-1(Coder) | claw-2(Research)', 'info'],
+  ['[sys] Company selector: OK', 'info'],
+  ['[sys] Voice: tap mascot for Director, tap agent in office', 'agent'],
+  ['[sys] Agents: Director | Content | Scout', 'info'],
+  ['[sys] Kanban: DRAFTS → SCHEDULED → POSTED', 'info'],
   ['[sys] Connecting to OpenClaw gateway...', 'system'],
 ];
 
@@ -315,10 +317,26 @@ function formatLogEntry(type, data) {
 // --- Render Loop ---
 
 let lastTime = performance.now();
+let kanbanFetchTimer = 0;
+
+// Fetch kanban posts every 10 seconds
+async function fetchKanbanUpdates() {
+  const companyId = companySelector.getCurrentCompanyId();
+  if (companyId) {
+    await office.fetchKanbanPosts(companyId);
+  }
+}
 
 function frame(now) {
   const dt = now - lastTime;
   lastTime = now;
+
+  // Fetch kanban updates periodically
+  kanbanFetchTimer += dt;
+  if (kanbanFetchTimer > 10000) {
+    kanbanFetchTimer = 0;
+    fetchKanbanUpdates();
+  }
 
   mascot.update(dt);
   office.update(dt);

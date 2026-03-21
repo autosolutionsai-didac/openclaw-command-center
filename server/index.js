@@ -16,6 +16,7 @@ import OpenClawBridge from './openclaw-bridge.js';
 import { transcribe } from './voice.js';
 import { speak } from './voice-cartesia.js';
 import companiesRouter from './routes/companies.js';
+import postsRouter from './routes/posts.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -47,6 +48,7 @@ app.use(express.json());
 
 // API Routes
 app.use('/api/companies', companiesRouter);
+app.use('/api/posts', postsRouter);
 
 // Status endpoint (multi-tenant aware)
 app.get('/api/status', (req, res) => {
