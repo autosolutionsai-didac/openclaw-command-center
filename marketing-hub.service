@@ -1,0 +1,24 @@
+[Unit]
+Description=OpenClaw Marketing Hub
+Documentation=https://github.com/autosolutionsai-didac/openclaw-command-center
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/marketing-hub
+Environment=NODE_ENV=production
+ExecStart=/bin/bash /home/pi/marketing-hub/start-kiosk.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=marketing-hub
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
