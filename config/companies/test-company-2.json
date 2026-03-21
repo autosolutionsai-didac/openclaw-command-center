@@ -1,0 +1,41 @@
+{
+  "id": "test-company-2",
+  "name": "Test OpenClaw Co 2",
+  "brandVoice": "casual",
+  "description": "Testing multi-tenant switching",
+  "lateProfileId": "",
+  "socialAccounts": ["linkedin", "twitter"],
+  "colors": {
+    "primary": "#EC4899",
+    "secondary": "#BE185D",
+    "kanban": "#F59E0B"
+  },
+  "postingSchedule": {
+    "enabled": true,
+    "times": ["10:00", "14:00", "18:00"],
+    "timezone": "Europe/Madrid",
+    "frequency": {
+      "linkedin": "daily",
+      "twitter": "daily"
+    }
+  },
+  "websites": [],
+  "agentConfig": {
+    "director": {
+      "name": "Director",
+      "color": "#F59E0B",
+      "voice": "onyx"
+    },
+    "content": {
+      "name": "Content",
+      "color": "#EC4899",
+      "voice": "fable"
+    },
+    "scout": {
+      "name": "Scout",
+      "color": "#06B6D4",
+      "voice": "echo"
+    }
+  },
+  "createdAt": "2026-03-21T00:00:00.000Z"
+}
