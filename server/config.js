@@ -9,7 +9,7 @@ export default {
   // Voice (Cartesia via chat-proxy)
   cartesiaApiKey: process.env.CARTESIA_API_KEY || '',
   cartesiaVoiceId: process.env.CARTESIA_VOICE_ID || '',
-  chatProxyUrl: process.env.CHAT_PROXY_URL || 'http://127.0.0.1:8080',
+  chatProxyUrl: process.env.CHAT_PROXY_URL || 'https://chat.abos.work',
   
   // Late API
   lateApiKey: process.env.LATE_API_KEY || '',

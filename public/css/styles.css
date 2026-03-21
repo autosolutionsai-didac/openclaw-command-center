@@ -25,6 +25,11 @@
   --glow-happy: #00FF66;
   --glow-error: #FF4466;
   --glow-sleeping: #334466;
+  
+  /* Company theming (dynamically updated) */
+  --company-primary: #3B82F6;
+  --company-secondary: #1E40AF;
+  --kanban-color: #10B981;
 }
 
 html, body {
@@ -36,6 +41,68 @@ html, body {
   font-family: 'Inter', sans-serif;
 }
 
+/* Company Header */
+#company-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  background: rgba(10, 14, 26, 0.95);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  z-index: 1000;
+  backdrop-filter: blur(8px);
+}
+
+.company-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.company-selector label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.company-selector select {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.company-selector select:hover {
+  border-color: var(--cyan);
+}
+
+.company-selector select:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 2px rgba(0, 221, 255, 0.2);
+}
+
+#company-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
 #command-center {
   width: 100%;
   height: 100%;
@@ -44,6 +111,7 @@ html, body {
   grid-template-rows: 60% 40%;
   gap: 4px;
   padding: 4px;
+  padding-top: 52px; /* Account for fixed header */
 }
 
 .zone {

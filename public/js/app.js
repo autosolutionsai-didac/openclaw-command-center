@@ -2,12 +2,16 @@ import * as terminal from './terminal.js';
 import * as mascot from './mascot.js';
 import * as office from './office.js';
 import * as voice from './voice.js';
+import companySelector from './company-selector.js';
 
 // --- Init ---
 
 terminal.init('terminal-output');
 mascot.init('mascot-canvas');
 office.init('office-canvas');
+
+// Initialize company selector
+await companySelector.init();
 
 voice.init({
   onTranscription: (text, agent) => {
@@ -147,6 +151,9 @@ function connect() {
 
   ws = new WebSocket(url);
 
+  // Connect company selector to WebSocket
+  companySelector.setWebSocket(ws);
+
   ws.onopen = () => {
     terminal.log('[ws] Connected to server', 'info');
     if (reconnectTimer) {
@@ -219,7 +226,13 @@ async function handleEvent(msg) {
     const mode = data?.mode || 'unknown';
     terminal.log(`[bridge] Mode: ${mode}`, 'system', true);
     if (data?.voiceEnabled) {
-      terminal.log('[voice] OpenAI voice enabled', 'info');
+      terminal.log('[voice] Cartesia voice enabled', 'info');
+    }
+    if (data?.multiTenant) {
+      terminal.log(`[multi-tenant] Enabled (${data.companyCount || 0} companies)`, 'system', true);
+      if (data?.activeCompany) {
+        terminal.log(`[company] Active: ${data.activeCompany.name}`, 'info', true);
+      }
     }
     return;
   }
@@ -227,6 +240,16 @@ async function handleEvent(msg) {
   if (type === 'bridge:disconnected') {
     terminal.log('[bridge] Gateway disconnected', 'error');
     mascot.setEmotion('error');
+    return;
+  }
+
+  // Company switch event
+  if (type === 'company:switched') {
+    terminal.log(`[company] Switched to ${data.companyName}`, 'info', true);
+    // Refresh office colors based on new company
+    if (data.colors?.primary) {
+      office.setCompanyColors(data.colors);
+    }
     return;
   }
 

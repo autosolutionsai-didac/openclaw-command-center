@@ -13,7 +13,8 @@ import config from './config.js';
 import { initDatabase, logActivity, getActiveCompany } from './db/index.js';
 import companyManager from './company-manager.js';
 import OpenClawBridge from './openclaw-bridge.js';
-import { transcribe, speak } from './voice.js';
+import { transcribe } from './voice.js';
+import { speak } from './voice-cartesia.js';
 import companiesRouter from './routes/companies.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -326,7 +327,7 @@ server.listen(config.port, '0.0.0.0', () => {
   const proto = useHttps ? 'https' : 'http';
   console.log(`[server] OpenClaw Marketing Hub running on ${proto}://0.0.0.0:${config.port}`);
   console.log(`[server] TLS: ${useHttps ? 'ENABLED' : 'DISABLED (no cert.pem/key.pem)'}`);
-  console.log(`[server] Voice: ${config.cartesiaApiKey ? 'ENABLED (Cartesia)' : 'DISABLED (set CARTESIA_API_KEY in .env)'}`);
+  console.log(`[server] Voice: ${config.chatProxyUrl ? 'ENABLED (Cartesia via chat-proxy)' : 'DISABLED (set CHAT_PROXY_URL in .env)'}`);
   console.log(`[server] Multi-tenant: ENABLED (${companyManager.getAllCompanies().length} companies loaded)`);
   bridge.start();
 });

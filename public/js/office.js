@@ -176,6 +176,25 @@ export function getAgentAtPoint(canvasX, canvasY) {
 
 export function setAgentHighlight(agentId, on) { highlightedAgent = on ? agentId : null; }
 
+// Set company colors for theming
+export function setCompanyColors(colors) {
+  if (!colors) return;
+  
+  // Update CSS custom properties for dynamic theming
+  const root = document.documentElement;
+  if (colors.primary) {
+    root.style.setProperty('--company-primary', colors.primary);
+  }
+  if (colors.secondary) {
+    root.style.setProperty('--company-secondary', colors.secondary);
+  }
+  if (colors.kanban) {
+    root.style.setProperty('--kanban-color', colors.kanban);
+  }
+  
+  console.log('[office] Company colors updated:', colors);
+}
+
 // All agents look up when voice recording starts
 export function onVoiceStart(targetAgentId) {
   voiceReactionTimer = 1200; // look up for 1.2s
