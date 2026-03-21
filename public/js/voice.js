@@ -9,7 +9,8 @@ let onTranscription = null; // callback(text)
 let silenceTimer = null;
 let targetAgent = 'main';
 
-const MAX_RECORD_SECONDS = 15;
+const MAX_RECORD_SECONDS = 30;  // Increased from 15s to 30s
+const MIN_RECORD_SECONDS = 2;   // Minimum recording time before auto-stop
 
 // Web Speech API recognition
 let recognition = null;
@@ -74,9 +75,12 @@ export async function startRecording() {
       isRecording = true;
       console.log('[voice] Started Web Speech API recognition');
       
-      // Auto-stop after max duration
+      // Auto-stop after max duration (but don't stop on brief pauses)
       silenceTimer = setTimeout(() => {
-        if (isRecording) stopRecording();
+        if (isRecording) {
+          console.log('[voice] Max duration reached, stopping');
+          stopRecording();
+        }
       }, MAX_RECORD_SECONDS * 1000);
       
       return;
@@ -128,6 +132,8 @@ export async function startRecording() {
 }
 
 export function stopRecording() {
+  if (!isRecording) return;
+  
   // Stop Web Speech API
   if (recognition && isRecording) {
     recognition.stop();
@@ -136,8 +142,11 @@ export function stopRecording() {
     // Use the speech result
     if (speechResult && onTranscription) {
       onTranscription(speechResult, targetAgent);
+    } else if (!speechResult) {
+      console.warn('[voice] No speech detected');
     }
     
+    clearTimeout(silenceTimer);
     isRecording = false;
     return;
   }
@@ -146,6 +155,7 @@ export function stopRecording() {
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
     mediaRecorder.stop();
   }
+  clearTimeout(silenceTimer);
   isRecording = false;
 }
 

@@ -62,10 +62,10 @@ mascotZone.addEventListener('click', async (e) => {
   if (recording) {
     mascot.setEmotion('listening');
     office.onVoiceStart('main'); // all agents look up
-    terminal.log('[mic] Listening for Jansky... tap to stop', 'system', true);
+    terminal.log('[mic] 🎤 Recording... speak now (tap to stop)', 'system', true);
   } else {
     mascot.setEmotion('thinking');
-    terminal.log('[mic] Processing...', 'system', true);
+    terminal.log('[mic] ⏹️ Stopped. Processing...', 'system', true);
   }
 });
 
@@ -112,7 +112,7 @@ officeCanvas.addEventListener('click', async (e) => {
   office.onVoiceStart(agentId); // all agents look up
   await voice.startRecording();
   mascot.setEmotion('listening');
-  terminal.log(`[mic] Listening for ${agentId}... tap again to send`, 'system', true);
+  terminal.log(`[mic] 🎤 Recording for ${agentId}... tap to stop`, 'system', true);
 });
 
 // --- Boot Sequence ---
