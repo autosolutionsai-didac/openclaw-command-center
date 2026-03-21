@@ -1,11 +1,13 @@
 import config from './config.js';
 
 // Cartesia voice mapping per agent role
+// All agents use Brooke for now (e07c00bc-4134-4eae-9ea4-1a55fb45746b)
+// TODO: Add real Cartesia voice IDs for variety (see TOOLS.md)
 const VOICE_MAP = {
   'main': 'e07c00bc-4134-4eae-9ea4-1a55fb45746b', // Brooke (default)
-  'director': 'e07c00bc-4134-4eae-9ea4-1a55fb45746b', // Brooke - deep, authoritative
-  'claw-1': 'b7d5c0e3-8f4a-4c9e-a1d2-3e5f6a7b8c9d', // TBD - clear, friendly (Content)
-  'claw-2': 'c8e6d1f4-9a5b-4d0f-b2e3-4f6a7b8c9d0e', // TBD - warm, curious (Scout)
+  'director': 'e07c00bc-4134-4eae-9ea4-1a55fb45746b', // Brooke
+  'claw-1': 'e07c00bc-4134-4eae-9ea4-1a55fb45746b', // Brooke (Content)
+  'claw-2': 'e07c00bc-4134-4eae-9ea4-1a55fb45746b', // Brooke (Scout)
 };
 
 /**

@@ -53,19 +53,20 @@ class LateAPIClient {
   /**
    * Create a post
    * @param {string} profileId - Late profile ID
-   * @param {object} post - Post data { content, platforms, scheduledAt?, media? }
+   * @param {object} post - Post data { content, platforms, scheduledFor?, media? }
    */
   async createPost(profileId, post) {
     console.log(`[late] Creating post for profile ${profileId}`);
     
     const payload = {
+      profileId,
       content: post.content,
       platforms: post.platforms || ['linkedin', 'instagram', 'facebook'],
-      scheduled_at: post.scheduledAt,
+      scheduledFor: post.scheduledFor,
       media: post.media,
     };
 
-    const result = await this.request(`/profiles/${profileId}/posts`, {
+    const result = await this.request(`/posts`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -75,17 +76,20 @@ class LateAPIClient {
   }
 
   /**
-   * Schedule a post
+   * Schedule a post (update existing post with scheduledFor)
    * @param {string} profileId - Late profile ID
    * @param {string} postId - Post ID
-   * @param {string} scheduledAt - ISO 8601 datetime
+   * @param {string} scheduledFor - ISO 8601 datetime
    */
-  async schedulePost(profileId, postId, scheduledAt) {
-    console.log(`[late] Scheduling post ${postId} for ${scheduledAt}`);
+  async schedulePost(profileId, postId, scheduledFor) {
+    console.log(`[late] Scheduling post ${postId} for ${scheduledFor}`);
     
-    return this.request(`/profiles/${profileId}/posts/${postId}/schedule`, {
-      method: 'POST',
-      body: JSON.stringify({ scheduled_at: scheduledAt }),
+    return this.request(`/posts/${postId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ 
+        profileId,
+        scheduledFor 
+      }),
     });
   }
 
@@ -95,8 +99,9 @@ class LateAPIClient {
   async publishPost(profileId, postId) {
     console.log(`[late] Publishing post ${postId}`);
     
-    return this.request(`/profiles/${profileId}/posts/${postId}/publish`, {
+    return this.request(`/posts/${postId}/publish`, {
       method: 'POST',
+      body: JSON.stringify({ profileId }),
     });
   }
 
