@@ -1,11 +1,14 @@
 #!/bin/bash
 # Deploy Marketing Hub to Raspberry Pi via Tailscale
-# Usage: ./scripts/deploy-to-pi.sh <pi-tailscale-ip>
+# Usage: ./scripts/deploy-to-pi.sh <pi-tailscale-ip> [username]
+# Examples:
+#   ./scripts/deploy-to-pi.sh 100.95.221.113
+#   ./scripts/deploy-to-pi.sh 100.95.221.113 didac
 
 set -e
 
-PI_IP="${1:-100.108.202.72}"  # Default to common Pi Tailscale IP
-PI_USER="pi"
+PI_IP="${1:-100.95.221.113}"  # Default: pi-4b-marketing Tailscale IP
+PI_USER="${2:-pi}"  # Default username: pi (override with second arg)
 PI_PATH="/home/${PI_USER}/marketing-hub"
 
 echo "🚀 Deploying Marketing Hub to Pi at ${PI_IP}..."
@@ -32,12 +35,19 @@ tar -czf /tmp/marketing-hub-deploy.tar.gz \
   .
 
 # Copy to Pi
-echo "📤 Copying to Pi..."
-scp -o StrictHostKeyChecking=no /tmp/marketing-hub-deploy.tar.gz ${PI_USER}@${PI_IP}:/tmp/
+echo "📤 Copying to Pi (${PI_USER}@${PI_IP})..."
+scp -o StrictHostKeyChecking=no -o ConnectTimeout=10 /tmp/marketing-hub-deploy.tar.gz ${PI_USER}@${PI_IP}:/tmp/ 2>&1 || {
+  echo "❌ SSH connection failed. Check:"
+  echo "   1. Pi is reachable: ping -c 1 ${PI_IP}"
+  echo "   2. SSH is enabled: sudo systemctl status ssh"
+  echo "   3. Username is correct: ${PI_USER}"
+  echo "   4. SSH key is authorized on Pi"
+  exit 1
+}
 
 # Install on Pi
 echo "🔧 Installing on Pi..."
-ssh -o StrictHostKeyChecking=no ${PI_USER}@${PI_IP} << 'EOF'
+ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${PI_USER}@${PI_IP} << 'EOF'
   set -e
   
   echo "  → Stopping existing service..."
