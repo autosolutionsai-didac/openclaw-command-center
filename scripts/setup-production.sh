@@ -35,7 +35,18 @@ if [ "$USE_LATE_KEY" != "y" ]; then
   echo "✅ Late API key configured"
 fi
 
-# 3. Enable production mode
+# 3. Install OpenClaw CLI (if not present)
+if ! command -v openclaw &> /dev/null; then
+  echo ""
+  echo "🔧 Installing OpenClaw CLI..."
+  curl -fsSL https://openclaw.ai/install.sh | sh
+  echo "✅ OpenClaw CLI installed"
+else
+  echo ""
+  echo "✅ OpenClaw CLI already installed"
+fi
+
+# 4. Enable production mode
 echo ""
 echo "🔧 Enabling production mode..."
 sed -i 's/^DEMO_MODE=.*/DEMO_MODE=false/' .env

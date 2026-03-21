@@ -9,6 +9,7 @@
 - Raspberry Pi 5 with 7" touchscreen
 - Tailscale installed and connected to your tailnet
 - Node.js 20+ installed on Pi
+- OpenClaw CLI (auto-installed by setup script)
 
 ---
 

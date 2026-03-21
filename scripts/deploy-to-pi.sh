@@ -63,6 +63,14 @@ ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${PI_USER}@${PI_IP} << 'EOF
   cd ~/marketing-hub
   npm install --production
   
+  echo "  → Installing OpenClaw CLI..."
+  if ! command -v openclaw &> /dev/null; then
+    curl -fsSL https://openclaw.ai/install.sh | sh
+    echo "  → OpenClaw CLI installed"
+  else
+    echo "  → OpenClaw CLI already installed"
+  fi
+  
   echo "  → Setting up environment..."
   if [ ! -f .env ]; then
     cp .env.example .env
