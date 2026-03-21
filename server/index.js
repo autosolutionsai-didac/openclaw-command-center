@@ -58,7 +58,8 @@ app.get('/api/status', (req, res) => {
     uptime: process.uptime(),
     bridge: bridge.getStatus(),
     clients: wss.clients.size,
-    voiceEnabled: !!config.cartesiaApiKey,
+    voiceEnabled: !!config.chatProxyUrl, // Voice enabled if chat-proxy URL is set (TTS)
+    voiceSTT: 'web-speech', // Client-side Web Speech API for STT
     multiTenant: true,
     activeCompany: activeCompany ? {
       id: activeCompany.id,
@@ -178,19 +179,26 @@ function sendToAgent(agentId, message, companyId = null) {
   });
 }
 
-// Voice: transcribe audio -> text (multi-tenant aware)
+// Voice: transcribe audio -> text OR receive text from Web Speech API (multi-tenant aware)
 app.post('/api/voice/transcribe', upload.single('audio'), async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No audio file provided' });
-    }
-
     const targetAgent = req.body?.targetAgent || 'main';
     const companyId = req.body?.companyId || companyManager.getActiveCompany()?.id;
     
-    console.log(`[voice] Transcribing ${req.file.size} bytes for agent: ${targetAgent}, company: ${companyId}`);
-    const text = await transcribe(req.file.buffer, req.file.originalname || 'audio.webm');
-    console.log(`[voice] Transcribed: "${text}"`);
+    // Check if text was provided directly (from Web Speech API)
+    let text = req.body?.text;
+    
+    if (text) {
+      // Text provided directly (Web Speech API)
+      console.log(`[voice] Received text from Web Speech API: "${text}"`);
+    } else if (req.file) {
+      // Audio file provided (fallback to server STT)
+      console.log(`[voice] Transcribing ${req.file.size} bytes for agent: ${targetAgent}, company: ${companyId}`);
+      text = await transcribe(req.file.buffer, req.file.originalname || 'audio.webm');
+      console.log(`[voice] Transcribed: "${text}"`);
+    } else {
+      return res.status(400).json({ error: 'No audio file or text provided' });
+    }
 
     // Log activity
     if (companyId) {

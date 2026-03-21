@@ -1,5 +1,6 @@
 // Voice recording + playback module
-// Tap mascot to record, tap again (or auto-stop) to send to server
+// Uses Web Speech API for STT (free, no API key needed)
+// Sends to server for TTS playback
 
 let mediaRecorder = null;
 let audioChunks = [];
@@ -10,8 +11,43 @@ let targetAgent = 'main';
 
 const MAX_RECORD_SECONDS = 15;
 
+// Web Speech API recognition
+let recognition = null;
+let speechResult = '';
+
 export function init(opts = {}) {
   onTranscription = opts.onTranscription || null;
+  
+  // Initialize Web Speech API for STT (Chrome/Chromium only)
+  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    
+    recognition.onresult = (event) => {
+      let finalTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript;
+        }
+      }
+      if (finalTranscript) {
+        speechResult = finalTranscript;
+        console.log('[voice] Speech recognition:', speechResult);
+      }
+    };
+    
+    recognition.onerror = (event) => {
+      console.error('[voice] Speech recognition error:', event.error);
+    };
+    
+    console.log('[voice] Web Speech API initialized');
+  } else {
+    console.warn('[voice] Web Speech API not supported, falling back to server STT');
+  }
 }
 
 export function getIsRecording() {
@@ -28,6 +64,29 @@ export function getTargetAgent() {
 
 export async function startRecording() {
   if (isRecording) return;
+  
+  speechResult = ''; // Reset speech result
+  
+  // Try Web Speech API first (free, no API key)
+  if (recognition) {
+    try {
+      recognition.start();
+      isRecording = true;
+      console.log('[voice] Started Web Speech API recognition');
+      
+      // Auto-stop after max duration
+      silenceTimer = setTimeout(() => {
+        if (isRecording) stopRecording();
+      }, MAX_RECORD_SECONDS * 1000);
+      
+      return;
+    } catch (err) {
+      console.error('[voice] Web Speech API failed:', err);
+      // Fall through to MediaRecorder
+    }
+  }
+  
+  // Fallback: MediaRecorder for server-side STT
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     audioChunks = [];
@@ -69,6 +128,21 @@ export async function startRecording() {
 }
 
 export function stopRecording() {
+  // Stop Web Speech API
+  if (recognition && isRecording) {
+    recognition.stop();
+    console.log('[voice] Stopped Web Speech API');
+    
+    // Use the speech result
+    if (speechResult && onTranscription) {
+      onTranscription(speechResult, targetAgent);
+    }
+    
+    isRecording = false;
+    return;
+  }
+  
+  // Stop MediaRecorder
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
     mediaRecorder.stop();
   }
@@ -100,55 +174,24 @@ async function sendToServer(blob) {
     });
 
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Transcription failed');
+      throw new Error(`Server error: ${res.status}`);
     }
 
-    const { text } = await res.json();
-    if (text && onTranscription) {
-      onTranscription(text, sentTo);
+    const data = await res.json();
+    if (onTranscription && data.text) {
+      onTranscription(data.text, sentTo);
     }
   } catch (err) {
-    console.error('[voice] Send error:', err);
+    console.error('[voice] Transcription failed:', err.message);
   }
 }
 
-export async function playSpokenResponse(text, agentId = 'main') {
-  try {
-    const res = await fetch('/api/voice/speak', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, agent: agentId }),
-    });
-
-    if (!res.ok) throw new Error('TTS failed');
-
-    const audioBlob = await res.blob();
-    const url = URL.createObjectURL(audioBlob);
-
-    // Use Web Audio API with GainNode for volume boost (Pi has no master mixer)
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const arrayBuffer = await audioBlob.arrayBuffer();
-    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-
-    const source = audioCtx.createBufferSource();
-    source.buffer = audioBuffer;
-
-    const gainNode = audioCtx.createGain();
-    gainNode.gain.value = 2.0; // 2x volume boost
-
-    source.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-
-    return new Promise((resolve) => {
-      source.onended = () => {
-        URL.revokeObjectURL(url);
-        audioCtx.close();
-        resolve();
-      };
-      source.start(0);
-    });
-  } catch (err) {
-    console.error('[voice] Playback error:', err);
-  }
-}
+export default {
+  init,
+  getIsRecording,
+  setTargetAgent,
+  getTargetAgent,
+  startRecording,
+  stopRecording,
+  toggleRecording,
+};

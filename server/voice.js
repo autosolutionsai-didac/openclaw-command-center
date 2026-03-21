@@ -6,7 +6,8 @@ let openai = null;
 function getClient() {
   if (!openai) {
     if (!config.openaiApiKey) {
-      throw new Error('OPENAI_API_KEY not set in .env');
+      // Return null - server STT disabled, use client-side Web Speech API
+      return null;
     }
     openai = new OpenAI({ apiKey: config.openaiApiKey });
   }
@@ -15,6 +16,13 @@ function getClient() {
 
 export async function transcribe(audioBuffer, filename = 'audio.webm') {
   const client = getClient();
+  
+  if (!client) {
+    // Fallback: return demo text when no OpenAI key
+    console.log('[voice] No OpenAI key, using demo transcription');
+    return 'Demo: Voice command received (configure OpenAI API key for real STT)';
+  }
+  
   const file = new File([audioBuffer], filename, { type: 'audio/webm' });
 
   const result = await client.audio.transcriptions.create({
@@ -26,17 +34,22 @@ export async function transcribe(audioBuffer, filename = 'audio.webm') {
 }
 
 // Agent → voice mapping
-// main (Jansky): onyx — deep, authoritative boss voice
-// claw-1 (Coder): echo — clear, precise technical voice
-// claw-2 (Research): fable — warm, narrative storytelling voice
+// Uses Cartesia voice IDs (via voice-cartesia.js)
 const AGENT_VOICES = {
-  'main': 'onyx',
-  'claw-1': 'echo',
-  'claw-2': 'fable',
+  'main': 'e07c00bc-4134-4eae-9ea4-1a55fb45746b', // Brooke
+  'claw-1': 'e07c00bc-4134-4eae-9ea4-1a55fb45746b', // Brooke
+  'claw-2': 'e07c00bc-4134-4eae-9ea4-1a55fb45746b', // Brooke
 };
 
 export async function speak(text, agentId = 'main') {
+  // This function is now deprecated - use voice-cartesia.js instead
+  // Kept for backwards compatibility
   const client = getClient();
+  
+  if (!client) {
+    throw new Error('No OpenAI key configured. Use voice-cartesia.js for TTS.');
+  }
+  
   const voice = AGENT_VOICES[agentId] || 'nova';
 
   const response = await client.audio.speech.create({
