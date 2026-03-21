@@ -8,7 +8,7 @@
 set -e
 
 PI_IP="${1:-100.95.221.113}"  # Default: pi-4b-marketing Tailscale IP
-PI_USER="${2:-pi}"  # Default username: pi (override with second arg)
+PI_USER="${2:-pi-4b}"  # Default username: pi-4b (override with second arg)
 PI_PATH="/home/${PI_USER}/marketing-hub"
 
 echo "🚀 Deploying Marketing Hub to Pi at ${PI_IP}..."
