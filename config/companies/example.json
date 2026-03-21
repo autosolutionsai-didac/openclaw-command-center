@@ -1,0 +1,48 @@
+{
+  "id": "example",
+  "name": "Example OpenClaw Co",
+  "brandVoice": "professional",
+  "description": "Enterprise OpenClaw consulting and deployment",
+  "lateProfileId": "",
+  "socialAccounts": ["linkedin", "instagram", "facebook"],
+  "colors": {
+    "primary": "#3B82F6",
+    "secondary": "#1E40AF",
+    "kanban": "#10B981"
+  },
+  "postingSchedule": {
+    "enabled": true,
+    "times": ["9:00", "13:00", "17:00"],
+    "timezone": "Europe/Madrid",
+    "frequency": {
+      "linkedin": "daily",
+      "instagram": "daily",
+      "facebook": "daily"
+    }
+  },
+  "websites": [
+    {
+      "name": "Main Site",
+      "url": "https://example.com",
+      "checkInterval": 300
+    }
+  ],
+  "agentConfig": {
+    "director": {
+      "name": "Director",
+      "color": "#F59E0B",
+      "voice": "onyx"
+    },
+    "content": {
+      "name": "Content",
+      "color": "#EC4899",
+      "voice": "fable"
+    },
+    "scout": {
+      "name": "Scout",
+      "color": "#06B6D4",
+      "voice": "echo"
+    }
+  },
+  "createdAt": "2026-03-21T00:00:00.000Z"
+}

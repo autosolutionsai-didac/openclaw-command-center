@@ -8,12 +8,22 @@ import { dirname, join } from 'node:path';
 import { execFile, exec } from 'node:child_process';
 import os from 'node:os';
 import multer from 'multer';
+
 import config from './config.js';
+import { initDatabase, logActivity, getActiveCompany } from './db/index.js';
+import companyManager from './company-manager.js';
 import OpenClawBridge from './openclaw-bridge.js';
 import { transcribe, speak } from './voice.js';
+import companiesRouter from './routes/companies.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
+
+// Initialize database
+initDatabase();
+
+// Initialize company manager
+await companyManager.init();
 
 // Use HTTPS if certs exist, otherwise fall back to HTTP
 const certPath = join(__dirname, 'cert.pem');
@@ -34,13 +44,24 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 app.use(express.static(join(__dirname, '..', 'public')));
 app.use(express.json());
 
-// Status endpoint
+// API Routes
+app.use('/api/companies', companiesRouter);
+
+// Status endpoint (multi-tenant aware)
 app.get('/api/status', (req, res) => {
+  const activeCompany = companyManager.getActiveCompany();
   res.json({
     uptime: process.uptime(),
     bridge: bridge.getStatus(),
     clients: wss.clients.size,
-    voiceEnabled: !!config.openaiApiKey,
+    voiceEnabled: !!config.cartesiaApiKey,
+    multiTenant: true,
+    activeCompany: activeCompany ? {
+      id: activeCompany.id,
+      name: activeCompany.name,
+      colors: activeCompany.colors
+    } : null,
+    companyCount: companyManager.getAllCompanies().length
   });
 });
 
@@ -90,14 +111,30 @@ app.get('/api/weather', async (req, res) => {
   }
 });
 
-// Send transcribed text to an OpenClaw agent via CLI
-function sendToAgent(agentId, message) {
+// Get current active company context
+function getCurrentCompanyContext() {
+  const company = companyManager.getActiveCompany();
+  if (!company) {
+    throw new Error('No active company configured');
+  }
+  return {
+    companyId: company.id,
+    companyName: company.name,
+    brandVoice: company.brandVoice,
+    colors: company.colors
+  };
+}
+
+// Send transcribed text to an OpenClaw agent via CLI (multi-tenant aware)
+function sendToAgent(agentId, message, companyId = null) {
   const target = agentId || 'main';
-  console.log(`[agent] Sending to ${target}: "${message.slice(0, 80)}..."`);
+  const companyContext = companyId ? companyManager.getCompany(companyId) : getCurrentCompanyContext();
+  
+  console.log(`[agent] Sending to ${target} for ${companyContext.name}: "${message.slice(0, 80)}..."`);
 
   broadcast({
     type: 'agent:thinking',
-    data: { agent: target, status: 'Processing...' },
+    data: { agent: target, status: 'Processing...', companyId: companyContext.id },
   });
 
   const openclawBin = process.env.HOME + '/.local/bin/openclaw';
@@ -109,13 +146,17 @@ function sendToAgent(agentId, message) {
     '--message', message,
   ], {
     timeout: 90000,
-    env: { ...process.env, PATH: process.env.HOME + '/.local/bin:' + process.env.PATH },
+    env: { 
+      ...process.env, 
+      PATH: process.env.HOME + '/.local/bin:' + process.env.PATH,
+      COMPANY_ID: companyContext.id // Pass company context to agent
+    },
   }, (err, stdout, stderr) => {
     if (err) {
       console.error(`[agent] Error from ${target}:`, err.message);
       broadcast({
         type: 'agent:error',
-        data: { agent: target, message: err.message },
+        data: { agent: target, message: err.message, companyId: companyContext.id },
       });
       return;
     }
@@ -123,14 +164,17 @@ function sendToAgent(agentId, message) {
     const response = stdout.trim();
     console.log(`[agent] Response from ${target}: "${response.slice(0, 80)}..."`);
 
+    // Log activity
+    logActivity(companyContext.id, target, 'agent_response', { message, response });
+
     broadcast({
       type: 'agent:responding',
-      data: { agent: target, message: response },
+      data: { agent: target, message: response, companyId: companyContext.id },
     });
   });
 }
 
-// Voice: transcribe audio -> text
+// Voice: transcribe audio -> text (multi-tenant aware)
 app.post('/api/voice/transcribe', upload.single('audio'), async (req, res) => {
   try {
     if (!req.file) {
@@ -138,20 +182,27 @@ app.post('/api/voice/transcribe', upload.single('audio'), async (req, res) => {
     }
 
     const targetAgent = req.body?.targetAgent || 'main';
-    console.log(`[voice] Transcribing ${req.file.size} bytes for agent: ${targetAgent}`);
+    const companyId = req.body?.companyId || companyManager.getActiveCompany()?.id;
+    
+    console.log(`[voice] Transcribing ${req.file.size} bytes for agent: ${targetAgent}, company: ${companyId}`);
     const text = await transcribe(req.file.buffer, req.file.originalname || 'audio.webm');
     console.log(`[voice] Transcribed: "${text}"`);
+
+    // Log activity
+    if (companyId) {
+      logActivity(companyId, 'voice', 'transcription', { text, targetAgent });
+    }
 
     // Broadcast the transcription as a user command event
     broadcast({
       type: 'voice:transcription',
-      data: { text, agent: targetAgent, timestamp: Date.now() },
+      data: { text, agent: targetAgent, timestamp: Date.now(), companyId },
     });
 
     // Send to the targeted agent
-    sendToAgent(targetAgent, text);
+    sendToAgent(targetAgent, text, companyId);
 
-    res.json({ text, agent: targetAgent });
+    res.json({ text, agent: targetAgent, companyId });
   } catch (err) {
     console.error('[voice] Transcription error:', err.message);
     res.status(500).json({ error: err.message });
@@ -161,13 +212,19 @@ app.post('/api/voice/transcribe', upload.single('audio'), async (req, res) => {
 // Voice: text -> speech audio (returns mp3)
 app.post('/api/voice/speak', async (req, res) => {
   try {
-    const { text, agent } = req.body;
+    const { text, agent, companyId } = req.body;
     if (!text) {
       return res.status(400).json({ error: 'No text provided' });
     }
 
-    console.log(`[voice] Speaking as ${agent || 'main'}: "${text.slice(0, 80)}..."`);
-    const audioBuffer = await speak(text, agent || 'main');
+    const companyContext = companyId ? companyManager.getCompany(companyId) : getCurrentCompanyContext();
+    console.log(`[voice] Speaking as ${agent || 'main'} for ${companyContext.name}: "${text.slice(0, 80)}..."`);
+    
+    // Get voice from company agent config
+    const agentConfig = companyContext.agentConfig?.[agent === 'main' ? 'director' : agent === 'claw-1' ? 'content' : 'scout'];
+    const voiceId = agentConfig?.voice || 'onyx';
+    
+    const audioBuffer = await speak(text, agent || 'main', voiceId);
 
     res.set('Content-Type', 'audio/mpeg');
     res.set('Content-Length', audioBuffer.length);
@@ -181,22 +238,58 @@ app.post('/api/voice/speak', async (req, res) => {
 // WebSocket server
 const wss = new WebSocketServer({ server });
 
+// Track company context per WebSocket connection
+const clientCompanyMap = new WeakMap();
+
 wss.on('connection', (ws) => {
   console.log(`[ws] Client connected (total: ${wss.clients.size})`);
 
   // Send current status on connect
+  const activeCompany = companyManager.getActiveCompany();
   ws.send(JSON.stringify({
     type: 'status',
-    data: { ...bridge.getStatus(), voiceEnabled: !!config.openaiApiKey },
+    data: { 
+      ...bridge.getStatus(), 
+      voiceEnabled: !!config.cartesiaApiKey,
+      multiTenant: true,
+      activeCompany: activeCompany ? {
+        id: activeCompany.id,
+        name: activeCompany.name,
+        colors: activeCompany.colors
+      } : null
+    },
   }));
 
   ws.on('close', () => {
     console.log(`[ws] Client disconnected (total: ${wss.clients.size})`);
   });
+  
+  ws.on('message', (message) => {
+    try {
+      const data = JSON.parse(message);
+      if (data.type === 'switch_company' && data.companyId) {
+        // Handle company switch via WebSocket
+        const company = companyManager.setActiveCompany(data.companyId);
+        clientCompanyMap.set(ws, company.id);
+        broadcast({
+          type: 'company:switched',
+          data: {
+            companyId: company.id,
+            companyName: company.name,
+            colors: company.colors
+          }
+        });
+        console.log(`[ws] Client switched to company: ${company.id}`);
+      }
+    } catch (err) {
+      console.error('[ws] Error parsing message:', err.message);
+    }
+  });
 });
 
 function broadcast(msg) {
   const payload = JSON.stringify(msg);
+
   for (const client of wss.clients) {
     if (client.readyState === 1) {
       client.send(payload);
@@ -220,14 +313,20 @@ bridge.on('disconnected', () => {
 });
 
 bridge.on('event', (event) => {
+  // Add company context to bridge events if available
+  const activeCompany = companyManager.getActiveCompany();
+  if (activeCompany && event.data) {
+    event.data.companyId = activeCompany.id;
+  }
   broadcast(event);
 });
 
 // Start
 server.listen(config.port, '0.0.0.0', () => {
   const proto = useHttps ? 'https' : 'http';
-  console.log(`[server] OpenClaw Command Center running on ${proto}://0.0.0.0:${config.port}`);
+  console.log(`[server] OpenClaw Marketing Hub running on ${proto}://0.0.0.0:${config.port}`);
   console.log(`[server] TLS: ${useHttps ? 'ENABLED' : 'DISABLED (no cert.pem/key.pem)'}`);
-  console.log(`[server] Voice: ${config.openaiApiKey ? 'ENABLED' : 'DISABLED (set OPENAI_API_KEY in .env)'}`);
+  console.log(`[server] Voice: ${config.cartesiaApiKey ? 'ENABLED (Cartesia)' : 'DISABLED (set CARTESIA_API_KEY in .env)'}`);
+  console.log(`[server] Multi-tenant: ENABLED (${companyManager.getAllCompanies().length} companies loaded)`);
   bridge.start();
 });
