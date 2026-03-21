@@ -17,6 +17,7 @@ import { transcribe } from './voice.js';
 import { speak } from './voice-cartesia.js';
 import companiesRouter from './routes/companies.js';
 import postsRouter from './routes/posts.js';
+import scheduler from './scheduler.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -331,5 +332,12 @@ server.listen(config.port, '0.0.0.0', () => {
   console.log(`[server] TLS: ${useHttps ? 'ENABLED' : 'DISABLED (no cert.pem/key.pem)'}`);
   console.log(`[server] Voice: ${config.chatProxyUrl ? 'ENABLED (Cartesia via chat-proxy)' : 'DISABLED (set CHAT_PROXY_URL in .env)'}`);
   console.log(`[server] Multi-tenant: ENABLED (${companyManager.getAllCompanies().length} companies loaded)`);
+  console.log(`[server] Scheduler: ${config.demoMode ? 'DISABLED (demo mode)' : 'ENABLED (auto-posting)'}`);
+  
   bridge.start();
+  
+  // Start auto-posting scheduler (only in production mode)
+  if (!config.demoMode) {
+    scheduler.start();
+  }
 });
