@@ -130,7 +130,7 @@ function getCurrentCompanyContext() {
   };
 }
 
-// Send transcribed text to an OpenClaw agent via CLI (multi-tenant aware)
+// Send transcribed text to an OpenClaw agent via WebSocket bridge (hybrid architecture)
 function sendToAgent(agentId, message, companyId = null) {
   const target = agentId || 'main';
   const companyContext = companyId ? companyManager.getCompany(companyId) : getCurrentCompanyContext();
@@ -142,41 +142,20 @@ function sendToAgent(agentId, message, companyId = null) {
     data: { agent: target, status: 'Processing...', companyId: companyContext.id },
   });
 
-  const openclawBin = process.env.HOME + '/.local/bin/openclaw';
-  // Sub-agents use --thinking off for faster responses
-  const thinkingLevel = target === 'main' ? 'low' : 'off';
-  execFile(openclawBin, [
-    'agent', '--agent', target,
-    '--thinking', thinkingLevel,
-    '--message', message,
-  ], {
-    timeout: 90000,
-    env: { 
-      ...process.env, 
-      PATH: process.env.HOME + '/.local/bin:' + process.env.PATH,
-      COMPANY_ID: companyContext.id // Pass company context to agent
+  // Send message through WebSocket bridge to VPS gateway
+  // This is the hybrid architecture: Pi is thin client, VPS runs agents
+  bridge.sendRpc('agent.message', {
+    agent: target,
+    message,
+    thinking: target === 'main' ? 'low' : 'off',
+    context: {
+      companyId: companyContext.id,
+      companyName: companyContext.name,
     },
-  }, (err, stdout, stderr) => {
-    if (err) {
-      console.error(`[agent] Error from ${target}:`, err.message);
-      broadcast({
-        type: 'agent:error',
-        data: { agent: target, message: err.message, companyId: companyContext.id },
-      });
-      return;
-    }
-
-    const response = stdout.trim();
-    console.log(`[agent] Response from ${target}: "${response.slice(0, 80)}..."`);
-
-    // Log activity
-    logActivity(companyContext.id, target, 'agent_response', { message, response });
-
-    broadcast({
-      type: 'agent:responding',
-      data: { agent: target, message: response, companyId: companyContext.id },
-    });
   });
+
+  // Listen for response via bridge event handler (already wired in bridge.on('event'))
+  // Response will trigger broadcast via handleEvent in app.js
 }
 
 // Voice: transcribe audio -> text OR receive text from Web Speech API (multi-tenant aware)
