@@ -855,84 +855,218 @@ function drawScreenContent(mx, my, w, h, agent) {
   }
 }
 
-// --- Agent Drawing ---
+// --- Agent Drawing (Improved Pixel Art) ---
 
 function drawAgent(agent) {
   const x = Math.floor(canvas.width * agent.xPct), y = Math.floor(canvas.height * agent.yPct);
   const t = tick / 1000, color = agent.color, dark = darken(color, 0.4);
   const ax = x, ay = y + PX * 5;
   const bob = agent.state === 'idle' ? Math.sin(t * 1.5) * PX * 0.3 : 0;
-
-  // Celebration: lean back
   const leanBack = agent.celebrating ? PX * 1.5 : 0;
+  const headYOff = agent.lookUp ? -PX * 0.5 : 0;
 
-  // Look up when voice starts
-  const headYOff = agent.lookUp ? -PX * 1 : 0;
+  // === HEAD ===
+  // Hair (different styles per agent)
+  ctx.fillStyle = '#4A3728'; // Brown hair
+  if (agent.id === 'main') {
+    // Brandon style - spiky brown hair
+    drawPixelPattern([' XXX ','XXXXX','XXXXX',' XXX '], ax - PX * 2.5, ay - PX * 9 + bob + headYOff, PX);
+  } else if (agent.id === 'claw-1') {
+    // Sophie style - long wavy hair
+    drawPixelPattern(['XXXXX','XXXXXX','XXXXX',' XXX '], ax - PX * 2.5, ay - PX * 9 + bob + headYOff, PX);
+    ctx.fillStyle = '#4A3728';
+    pixel(ax - PX * 3, ay - PX * 7 + bob + headYOff, PX);
+    pixel(ax - PX * 3, ay - PX * 6 + bob + headYOff, PX);
+    pixel(ax + PX * 3, ay - PX * 7 + bob + headYOff, PX);
+    pixel(ax + PX * 3, ay - PX * 6 + bob + headYOff, PX);
+  } else {
+    // Jake style - red cap
+    ctx.fillStyle = '#CC3322'; // Red cap
+    drawPixelPattern(['  XXX  ',' XXXXX ','XXXXXXX'], ax - PX * 3, ay - PX * 9 + bob + headYOff, PX);
+  }
 
-  ctx.fillStyle = '#D4A574';
-  drawPixelPattern([' XX ','XXXX','XXXX',' XX '], ax - PX * 2, ay - PX * 6 + bob + headYOff, PX);
-  ctx.fillStyle = color;
-  pixel(ax - PX, ay - PX * 7 + bob + headYOff, PX); pixel(ax, ay - PX * 7 + bob + headYOff, PX); pixel(ax + PX, ay - PX * 7 + bob + headYOff, PX);
-  pixel(ax - PX * 2, ay - PX * 6 + bob + headYOff, PX); pixel(ax + PX * 2, ay - PX * 6 + bob + headYOff, PX);
-  if (agent.isBoss) { ctx.fillStyle = '#FFD700'; pixel(ax, ay - PX * 8 + bob + headYOff, PX); }
+  // Face
+  ctx.fillStyle = '#E8C49A';
+  drawPixelPattern(['XXXXX','XXXXX','XXXXX',' XXX '], ax - PX * 2, ay - PX * 6 + bob + headYOff, PX);
 
-  // Eyes — look up if voice active
-  ctx.fillStyle = '#111';
+  // Eyes
+  ctx.fillStyle = '#1a1a1a';
   const eyeY = ay - PX * 5 + bob + headYOff + (agent.lookUp ? -PX * 0.3 : 0);
-  pixel(ax - PX, eyeY, PX * 0.7); pixel(ax + PX, eyeY, PX * 0.7);
+  if (agent.id === 'main') {
+    // Brandon - glasses
+    ctx.fillStyle = '#2a2a2a';
+    pixel(ax - PX * 1.5, eyeY, PX * 1.2);
+    pixel(ax + PX * 1.5, eyeY, PX * 1.2);
+    ctx.fillStyle = '#E8C49A';
+    pixel(ax - PX * 0.8, eyeY, PX * 0.5);
+    pixel(ax + PX * 0.8, eyeY, PX * 0.5);
+  } else {
+    // Sophie & Jake - normal eyes
+    pixel(ax - PX * 1.2, eyeY, PX * 0.8);
+    pixel(ax + PX * 1.2, eyeY, PX * 0.8);
+  }
 
-  ctx.fillStyle = dark;
-  drawPixelPattern([' XX ','XXXX','XXXX'], ax - PX * 2 + leanBack, ay - PX * 2 + bob, PX);
-  ctx.fillStyle = '#D4A574';
+  // Mouth (small smile)
+  ctx.fillStyle = '#CC8866';
+  pixel(ax, ay - PX * 3.5 + bob + headYOff, PX * 0.8);
+
+  // === BODY ===
+  // Jacket/Shirt
+  ctx.fillStyle = agent.id === 'main' ? '#3B6FB5' : // Brandon - blue jacket
+                  agent.id === 'claw-1' ? '#B53B6F' : // Sophie - pink/purple
+                  '#3B8F52'; // Jake - green jacket
+  drawPixelPattern([' XXX ','XXXXX','XXXXX',' XXX '], ax - PX * 2.5 + leanBack, ay - PX * 2 + bob, PX);
+
+  // White shirt underneath
+  ctx.fillStyle = '#FFFFFF';
+  pixel(ax, ay - PX * 2 + bob, PX * 0.8);
+
+  // Arms (animated when working)
+  ctx.fillStyle = agent.id === 'main' ? '#3B6FB5' : agent.id === 'claw-1' ? '#B53B6F' : '#3B8F52';
   if (agent.state === 'working') {
     const armY = ay - PX + Math.sin(t * 8) * PX * 0.5;
-    pixel(ax - PX * 3, armY, PX); pixel(ax + PX * 2, armY + Math.sin(t * 8 + 1) * PX * 0.5, PX);
+    pixel(ax - PX * 3.5, armY, PX * 1.2);
+    pixel(ax + PX * 3.5, armY + Math.sin(t * 8 + 1) * PX * 0.3, PX * 1.2);
+    // Hold items
+    if (agent.id === 'main') {
+      // Coffee cup
+      ctx.fillStyle = '#FFFFFF';
+      pixel(ax - PX * 4, armY - PX * 0.5, PX * 1.5);
+      ctx.fillStyle = '#8B4513';
+      pixel(ax - PX * 4, armY - PX * 1.5, PX * 1.5);
+    } else if (agent.id === 'claw-1') {
+      // Phone with notification
+      ctx.fillStyle = '#333333';
+      pixel(ax + PX * 3.5, armY - PX, PX * 1.2);
+      ctx.fillStyle = '#FF4466';
+      pixel(ax + PX * 4, armY - PX * 2, PX * 0.8);
+    } else {
+      // Camera
+      ctx.fillStyle = '#2a2a2a';
+      pixel(ax + PX * 3.5, armY - PX * 0.5, PX * 1.5);
+      ctx.fillStyle = '#FF4444';
+      pixel(ax + PX * 4.2, armY - PX, PX * 0.5);
+    }
   } else if (agent.celebrating) {
-    // Arms up celebration
-    pixel(ax - PX * 3, ay - PX * 4, PX); pixel(ax + PX * 3, ay - PX * 4, PX);
-  } else { pixel(ax - PX * 3, ay - PX + bob, PX); pixel(ax + PX * 2, ay - PX + bob, PX); }
+    pixel(ax - PX * 4, ay - PX * 5, PX * 1.2);
+    pixel(ax + PX * 4, ay - PX * 5, PX * 1.2);
+  } else {
+    pixel(ax - PX * 3.5, ay - PX + bob, PX * 1.2);
+    pixel(ax + PX * 3.5, ay - PX + bob, PX * 1.2);
+  }
 
-  ctx.fillStyle = color; ctx.font = `${PX * 3}px VT323`; ctx.textAlign = 'center';
-  ctx.fillText(agent.label.toUpperCase(), ax, ay + PX * 4); ctx.textAlign = 'start';
+  // === LEGS ===
+  ctx.fillStyle = agent.id === 'main' ? '#CC9933' : // Brandon - tan pants
+                  agent.id === 'claw-1' ? '#333366' : // Sophie - dark blue pants
+                  '#336699'; // Jake - blue jeans
+  pixel(ax - PX * 1.5, ay + PX * 2 + bob, PX * 1.2);
+  pixel(ax + PX * 1.5, ay + PX * 2 + bob, PX * 1.2);
+
+  // Shoes
+  ctx.fillStyle = '#FFFFFF';
+  pixel(ax - PX * 1.5, ay + PX * 3 + bob, PX * 1.2);
+  pixel(ax + PX * 1.5, ay + PX * 3 + bob, PX * 1.2);
+
+  // Name label
+  ctx.fillStyle = agent.id === 'main' ? '#3B6FB5' : agent.id === 'claw-1' ? '#FF6699' : '#FFAA33';
+  ctx.font = `bold ${PX * 2.5}px VT323`;
+  ctx.textAlign = 'center';
+  ctx.fillText(agent.label.toUpperCase(), ax, ay + PX * 5);
+  ctx.textAlign = 'start';
 
   // Celebration sparkles
   if (agent.celebrating) {
     ctx.fillStyle = '#FFCC00';
     for (let i = 0; i < 4; i++) {
-      const sparkX = ax + Math.sin(t * 4 + i * 1.5) * PX * 4;
-      const sparkY = ay - PX * 6 + Math.cos(t * 3 + i * 2) * PX * 3;
-      pixel(sparkX, sparkY, PX * 0.5);
+      const sparkX = ax + Math.sin(t * 4 + i * 1.5) * PX * 5;
+      const sparkY = ay - PX * 8 + Math.cos(t * 3 + i * 2) * PX * 4;
+      pixel(sparkX, sparkY, PX * 0.6);
     }
   }
 }
 
 function drawWalkingAgent(agent) {
   const x = Math.floor(canvas.width * agent.xPct), y = Math.floor(canvas.height * agent.yPct);
-  const color = agent.color, dark = darken(color, 0.4);
   const bounce = Math.abs(Math.sin(agent.walkPhase * 3)) * PX * 1.5;
-  const legSwing = Math.sin(agent.walkPhase * 6);
+  const legSwing = Math.sin(agent.walkPhase * 6) * PX * 2;
+  const armSwing = Math.sin(agent.walkPhase * 6 + Math.PI) * PX * 1.5;
   const ax = x, ay = y - bounce;
+  const facingOffset = agent.facingRight ? PX * 0.5 : -PX * 0.5;
 
-  ctx.fillStyle = '#D4A574';
-  drawPixelPattern([' XX ','XXXX','XXXX',' XX '], ax - PX * 2, ay - PX * 8, PX);
-  ctx.fillStyle = color;
-  pixel(ax - PX, ay - PX * 9, PX); pixel(ax, ay - PX * 9, PX); pixel(ax + PX, ay - PX * 9, PX);
-  pixel(ax - PX * 2, ay - PX * 8, PX); pixel(ax + PX * 2, ay - PX * 8, PX);
-  if (agent.isBoss) { ctx.fillStyle = '#FFD700'; pixel(ax, ay - PX * 10, PX); }
-  ctx.fillStyle = '#111';
-  const eO = agent.facingRight ? PX * 0.3 : -PX * 0.3;
-  pixel(ax - PX + eO, ay - PX * 7, PX * 0.7); pixel(ax + PX + eO, ay - PX * 7, PX * 0.7);
-  ctx.fillStyle = dark;
-  drawPixelPattern([' XX ','XXXX','XXXX'], ax - PX * 2, ay - PX * 4, PX);
-  ctx.fillStyle = '#D4A574';
-  const aS = Math.sin(agent.walkPhase * 6) * PX;
-  pixel(ax - PX * 3, ay - PX * 3 + aS, PX); pixel(ax + PX * 2, ay - PX * 3 - aS, PX);
-  ctx.fillStyle = dark;
-  const lx = ax - PX + legSwing * PX, rx = ax + legSwing * -PX;
-  pixel(lx, ay - PX, PX); pixel(lx, ay, PX); pixel(rx, ay - PX, PX); pixel(rx, ay, PX);
-  ctx.fillStyle = '#333'; pixel(lx, ay + PX, PX); pixel(rx, ay + PX, PX);
-  ctx.fillStyle = color; ctx.font = `${PX * 3}px VT323`; ctx.textAlign = 'center';
-  ctx.fillText(agent.label.toUpperCase(), ax, ay + PX * 4); ctx.textAlign = 'start';
+  // === HEAD (with walking bob) ===
+  // Hair
+  ctx.fillStyle = '#4A3728';
+  if (agent.id === 'main') {
+    drawPixelPattern([' XXX ','XXXXX','XXXXX',' XXX '], ax - PX * 2.5 + facingOffset, ay - PX * 9, PX);
+  } else if (agent.id === 'claw-1') {
+    drawPixelPattern(['XXXXX','XXXXXX','XXXXX',' XXX '], ax - PX * 2.5 + facingOffset, ay - PX * 9, PX);
+    ctx.fillStyle = '#4A3728';
+    pixel(ax - PX * 3 + facingOffset, ay - PX * 7, PX);
+    pixel(ax + PX * 3 + facingOffset, ay - PX * 7, PX);
+  } else {
+    ctx.fillStyle = '#CC3322'; // Red cap
+    drawPixelPattern(['  XXX  ',' XXXXX ','XXXXXXX'], ax - PX * 3 + facingOffset, ay - PX * 9, PX);
+  }
+
+  // Face
+  ctx.fillStyle = '#E8C49A';
+  drawPixelPattern(['XXXXX','XXXXX','XXXXX',' XXX '], ax - PX * 2 + facingOffset, ay - PX * 6, PX);
+
+  // Eyes (looking forward when walking)
+  ctx.fillStyle = '#1a1a1a';
+  const eyeX = facingOffset * 0.5;
+  if (agent.id === 'main') {
+    ctx.fillStyle = '#2a2a2a'; // Glasses
+    pixel(ax - PX * 1.5 + eyeX, ay - PX * 5, PX * 1.2);
+    pixel(ax + PX * 1.5 + eyeX, ay - PX * 5, PX * 1.2);
+  } else {
+    pixel(ax - PX * 1.2 + eyeX, ay - PX * 5, PX * 0.8);
+    pixel(ax + PX * 1.2 + eyeX, ay - PX * 5, PX * 0.8);
+  }
+
+  // === BODY (slight lean when walking) ===
+  ctx.fillStyle = agent.id === 'main' ? '#3B6FB5' : agent.id === 'claw-1' ? '#B53B6F' : '#3B8F52';
+  drawPixelPattern([' XXX ','XXXXX','XXXXX',' XXX '], ax - PX * 2.5 + facingOffset * 0.5, ay - PX * 2, PX);
+
+  // White shirt
+  ctx.fillStyle = '#FFFFFF';
+  pixel(ax + facingOffset * 0.3, ay - PX * 2, PX * 0.8);
+
+  // Arms (swinging when walking)
+  ctx.fillStyle = agent.id === 'main' ? '#3B6FB5' : agent.id === 'claw-1' ? '#B53B6F' : '#3B8F52';
+  pixel(ax - PX * 3.5 + armSwing, ay - PX, PX * 1.2);
+  pixel(ax + PX * 3.5 - armSwing, ay - PX, PX * 1.2);
+
+  // Hold items while walking
+  if (agent.id === 'main') {
+    ctx.fillStyle = '#FFFFFF';
+    pixel(ax - PX * 4 + armSwing, ay - PX * 0.5, PX * 1.5);
+  } else if (agent.id === 'claw-1') {
+    ctx.fillStyle = '#333333';
+    pixel(ax + PX * 3.5 - armSwing, ay - PX, PX * 1.2);
+  } else {
+    ctx.fillStyle = '#2a2a2a';
+    pixel(ax + PX * 3.5 - armSwing, ay - PX * 0.5, PX * 1.5);
+  }
+
+  // === LEGS (animated walking) ===
+  ctx.fillStyle = agent.id === 'main' ? '#CC9933' : agent.id === 'claw-1' ? '#333366' : '#336699';
+  const leftLegY = ay + PX * 2 + legSwing * 0.5;
+  const rightLegY = ay + PX * 2 - legSwing * 0.5;
+  pixel(ax - PX * 1.5, leftLegY, PX * 1.2);
+  pixel(ax + PX * 1.5, rightLegY, PX * 1.2);
+
+  // Shoes
+  ctx.fillStyle = '#FFFFFF';
+  pixel(ax - PX * 1.5, leftLegY + PX * 0.8, PX * 1.2);
+  pixel(ax + PX * 1.5, rightLegY + PX * 0.8, PX * 1.2);
+
+  // Name label
+  ctx.fillStyle = agent.id === 'main' ? '#3B6FB5' : agent.id === 'claw-1' ? '#FF6699' : '#FFAA33';
+  ctx.font = `bold ${PX * 2.5}px VT323`;
+  ctx.textAlign = 'center';
+  ctx.fillText(agent.label.toUpperCase(), ax, ay + PX * 5);
+  ctx.textAlign = 'start';
 }
 
 function drawHighlight(agent) {

@@ -2,7 +2,7 @@
 // Designed with setSpriteSheet() for easy upgrade to real sprites
 
 const EMOTIONS = {
-  idle:      { color: '#00DDFF', eyeAnim: 'blink',   mouthAnim: 'neutral',  particles: 'float' },
+  idle:      { color: '#FF4444', eyeAnim: 'blink',   mouthAnim: 'neutral',  particles: 'float' },  // Red crab!
   listening: { color: '#00FF66', eyeAnim: 'wide',     mouthAnim: 'open',     particles: 'pulse' },
   thinking:  { color: '#FFCC00', eyeAnim: 'squint',   mouthAnim: 'hmm',      particles: 'spin' },
   working:   { color: '#AA66FF', eyeAnim: 'focused',  mouthAnim: 'neutral',  particles: 'spark' },
