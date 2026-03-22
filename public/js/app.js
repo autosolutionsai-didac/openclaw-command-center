@@ -3,6 +3,7 @@ import * as mascot from './mascot.js';
 import * as office from './office.js';
 import * as voice from './voice.js';
 import companySelector from './company-selector.js';
+import spriteRenderer from './sprite-renderer.js';
 
 // --- Init ---
 
@@ -12,6 +13,9 @@ office.init('office-canvas');
 
 // Initialize company selector
 await companySelector.init();
+
+// Load character sprites
+await spriteRenderer.loadAll();
 
 voice.init({
   onTranscription: (text, agent) => {
